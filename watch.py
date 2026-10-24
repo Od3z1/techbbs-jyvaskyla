@@ -32,14 +32,15 @@ def rows_from(html):
         link = row.select_one('.structItem-startDate a')
         date = row.select_one('.structItem-startDate time')
         label = row.select_one('.structItem-title .label')
-        if not all((title, link, date, label)):
+        if not all((title, link, date)):
             raise RuntimeError('Ilmoituslistan rakenne muuttui.')
         url = urljoin(BASE, link['href'])
         match = re.search(r'[./](\d+)/', url)
         if not match:
             raise RuntimeError('Ketjun tunnistetta ei löytynyt.')
         rows.append(dict(id=match[1], url=url, title=title.get_text(' ', strip=True),
-                         created=int(date['data-timestamp']), status=label.get_text(strip=True)))
+                         created=int(date['data-timestamp']),
+                         status=label.get_text(strip=True) if label else ''))
     if not rows:
         raise RuntimeError('Ilmoituslistaa ei löytynyt; tilaa ei nollata.')
     return rows, bool(soup.select_one('a.pageNav-jump--next'))
@@ -49,8 +50,10 @@ def details(html, title):
     soup = BeautifulSoup(html, 'html.parser')
     body = soup.select_one('.message--post .message-body')
     heading = soup.select_one('h1 .label')
-    if body is None or heading is None:
+    if body is None:
         raise RuntimeError('Ilmoituksen rakenne muuttui tai pääsy estettiin.')
+    if heading is None:
+        return None  # A seller can remove the prefix after the list was fetched.
     if heading.get_text(strip=True) not in ACTIVE:
         return None
     for quote in body.select('blockquote'):
@@ -166,6 +169,8 @@ if __name__ == '__main__':
             except Exception as exc:
                 # Don't log request exceptions: a push endpoint may contain secrets.
                 print(f'Osion {source} tarkistus epäonnistui ({type(exc).__name__}). Tarkista asetukset ja sivuston saatavuus.')
+                if isinstance(exc, RuntimeError):
+                    print(f'Syy: {exc}')
                 failures.append(source)
         if failures:
             raise SystemExit(1)
