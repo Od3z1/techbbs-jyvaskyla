@@ -44,6 +44,16 @@ class Tests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             watch.rows_from('<html>Access denied</html>')
 
+    def test_missing_prefix_does_not_break_list(self):
+        html = '<div class="structItem--thread"><div class="structItem-title"><a data-tp-primary="on">Tuote</a></div><div class="structItem-startDate"><a href="/threads/tuote.684030/"><time data-timestamp="1792749105"></time></a></div></div>'
+        rows, _ = watch.rows_from(html)
+        self.assertEqual(rows[0]['status'], '')
+        self.assertNotIn(rows[0]['status'], watch.ACTIVE)
+
+    def test_removed_prefix_on_thread_is_skipped(self):
+        html = page('JKL').replace('<span class="label">Myydään</span>', '')
+        self.assertIsNone(watch.details(html, 'Tuote JKL'))
+
     def test_thread_url_without_title_slug(self):
         html = '<div class="structItem--thread"><div class="structItem-title"><span class="label">Lahjoitetaan</span><a data-tp-primary="on">Tuote JKL</a></div><div class="structItem-startDate"><a href="/threads/123456/"><time data-timestamp="2000"></time></a></div></div>'
         rows, _ = watch.rows_from(html)
